@@ -1,0 +1,57 @@
+  default:
+    tags: [ test ]
+  stages:
+    - build
+    - style_test
+    - integration_test
+    - deploy
+
+  building:
+    stage: build
+    script:
+      - echo "Building..."
+      - cd src/cat/
+      - make s21_cat
+      - cd ../grep/
+      - make s21_grep
+    artifacts:
+      paths:
+        - src/cat/
+        - src/grep/
+      expire_in: 30 days
+    after_script:
+        - bash src/part6.sh
+
+  style_test_run:
+    stage: style_test
+    script:
+      - echo "style test run..."
+      - clang-format -i -style=google src/**/*.c src/**/*.h
+      - git diff --exit-code
+    after_script:
+        - bash src/part6.sh
+    
+
+  integration_test_run:
+    stage: integration_test
+    script:
+      - echo "integration_test_run..."
+      - cd src/cat/
+      - cat_out=$(bash test_s21_cat.sh)
+      - cat_fail=$(echo "$cat_out" | grep "FAIL:" | awk '{print $2}')
+      - cd ../grep/
+      - grep_out=$(bash test_s21_grep.sh)
+      - grep_fail=$(echo "$grep_out" | grep "FAIL:" | awk '{print $2}')
+      - if [[ $cat_fail > 0 ]] || [[ $grep_fail != 0 ]]; then exit 1; fi
+    after_script:
+        - bash src/part6.sh
+
+  deploy_run:
+    stage: deploy
+    script:
+        - cd src 
+        - bash deploy.sh
+    when: manual
+    after_script:
+        - bash src/part6.sh
+    
